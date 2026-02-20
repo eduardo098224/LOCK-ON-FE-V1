@@ -1,0 +1,526 @@
+-- Lock On Script V15 - Mobile Movimento Fix
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+local lockOn = false
+local target = nil
+local keybind = Enum.KeyCode.Q
+local maxDistance = 300
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "LockOnGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game.CoreGui
+
+local buttonSize = isMobile and UDim2.new(0, 130, 0, 45) or UDim2.new(0, 100, 0, 35)
+local buttonTextSize = isMobile and 16 or 14
+
+local LockButton = Instance.new("TextButton")
+LockButton.Size = buttonSize
+LockButton.Position = UDim2.new(0, 10, 0, 10)
+LockButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+LockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+LockButton.Text = "Lock: OFF"
+LockButton.Font = Enum.Font.GothamBold
+LockButton.TextSize = buttonTextSize
+LockButton.Parent = ScreenGui
+
+local corner1 = Instance.new("UICorner")
+corner1.CornerRadius = UDim.new(0, 8)
+corner1.Parent = LockButton
+
+local KeybindFrame = Instance.new("Frame")
+KeybindFrame.Size = UDim2.new(0, 100, 0, 60)
+KeybindFrame.Position = UDim2.new(0, 10, 0, 50)
+KeybindFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+KeybindFrame.Visible = not isMobile
+KeybindFrame.Parent = ScreenGui
+
+local corner2 = Instance.new("UICorner")
+corner2.CornerRadius = UDim.new(0, 8)
+corner2.Parent = KeybindFrame
+
+local KeyLabel = Instance.new("TextLabel")
+KeyLabel.Size = UDim2.new(1, 0, 0, 20)
+KeyLabel.Position = UDim2.new(0, 0, 0, 2)
+KeyLabel.BackgroundTransparency = 1
+KeyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyLabel.Text = "Keybind"
+KeyLabel.Font = Enum.Font.GothamBold
+KeyLabel.TextSize = 12
+KeyLabel.Parent = KeybindFrame
+
+local KeybindButton = Instance.new("TextButton")
+KeybindButton.Size = UDim2.new(0.8, 0, 0, 25)
+KeybindButton.Position = UDim2.new(0.1, 0, 0, 25)
+KeybindButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+KeybindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeybindButton.Text = "Q"
+KeybindButton.Font = Enum.Font.GothamBold
+KeybindButton.TextSize = 14
+KeybindButton.Parent = KeybindFrame
+
+local corner3 = Instance.new("UICorner")
+corner3.CornerRadius = UDim.new(0, 6)
+corner3.Parent = KeybindButton
+
+local TargetLabel = Instance.new("TextLabel")
+TargetLabel.Size = UDim2.new(0, 120, 0, 20)
+TargetLabel.Position = isMobile and UDim2.new(0, 10, 0, 60) or UDim2.new(0, 10, 0, 115)
+TargetLabel.BackgroundTransparency = 1
+TargetLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+TargetLabel.Text = ""
+TargetLabel.Font = Enum.Font.GothamBold
+TargetLabel.TextSize = 11
+TargetLabel.Parent = ScreenGui
+
+local PlatformLabel = Instance.new("TextLabel")
+PlatformLabel.Size = UDim2.new(0, 100, 0, 15)
+PlatformLabel.Position = isMobile and UDim2.new(0, 10, 0, 80) or UDim2.new(0, 10, 0, 135)
+PlatformLabel.BackgroundTransparency = 1
+PlatformLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+PlatformLabel.Text = isMobile and "📱 Mobile" or "💻 PC"
+PlatformLabel.Font = Enum.Font.Gotham
+PlatformLabel.TextSize = 10
+PlatformLabel.Parent = ScreenGui
+
+local LockOnGui = Instance.new("BillboardGui")
+LockOnGui.Name = "LockOnMira"
+LockOnGui.Size = isMobile and UDim2.new(5, 0, 5, 0) or UDim2.new(4, 0, 4, 0)
+LockOnGui.AlwaysOnTop = true
+LockOnGui.LightInfluence = 0
+LockOnGui.Parent = nil
+
+local MiraFrame = Instance.new("Frame")
+MiraFrame.Size = UDim2.new(1, 0, 1, 0)
+MiraFrame.BackgroundTransparency = 1
+MiraFrame.Parent = LockOnGui
+
+local function createLine(size, pos)
+    local line = Instance.new("Frame")
+    line.Size = size
+    line.Position = pos
+    line.AnchorPoint = Vector2.new(0.5, 0.5)
+    line.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    line.BorderSizePixel = 0
+    line.Parent = MiraFrame
+    local shadow = Instance.new("UIStroke")
+    shadow.Color = Color3.fromRGB(0, 150, 0)
+    shadow.Thickness = 1
+    shadow.Transparency = 0.5
+    shadow.Parent = line
+end
+
+createLine(UDim2.new(0.03, 0, 0.2, 0), UDim2.new(0.5, 0, 0.18, 0))
+createLine(UDim2.new(0.03, 0, 0.2, 0), UDim2.new(0.5, 0, 0.82, 0))
+createLine(UDim2.new(0.2, 0, 0.03, 0), UDim2.new(0.18, 0, 0.5, 0))
+createLine(UDim2.new(0.2, 0, 0.03, 0), UDim2.new(0.82, 0, 0.5, 0))
+
+local function createCorner(posX, posY)
+    local h = Instance.new("Frame")
+    h.Size = UDim2.new(0.15, 0, 0.03, 0)
+    h.Position = UDim2.new(posX, 0, posY, 0)
+    h.AnchorPoint = Vector2.new(0.5, 0.5)
+    h.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    h.BorderSizePixel = 0
+    h.Parent = MiraFrame
+    local v = Instance.new("Frame")
+    v.Size = UDim2.new(0.03, 0, 0.15, 0)
+    v.Position = UDim2.new(posX, 0, posY, 0)
+    v.AnchorPoint = Vector2.new(0.5, 0.5)
+    v.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    v.BorderSizePixel = 0
+    v.Parent = MiraFrame
+end
+
+createCorner(0.15, 0.15)
+createCorner(0.85, 0.15)
+createCorner(0.15, 0.85)
+createCorner(0.85, 0.85)
+
+local CenterDot = Instance.new("Frame")
+CenterDot.Size = UDim2.new(0.06, 0, 0.06, 0)
+CenterDot.Position = UDim2.new(0.5, 0, 0.5, 0)
+CenterDot.AnchorPoint = Vector2.new(0.5, 0.5)
+CenterDot.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+CenterDot.BorderSizePixel = 0
+CenterDot.Parent = MiraFrame
+
+local dotCorner = Instance.new("UICorner")
+dotCorner.CornerRadius = UDim.new(1, 0)
+dotCorner.Parent = CenterDot
+
+local function getTargetHRP(char)
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+end
+
+local function getTargetName(char)
+    if char then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player.Character == char then
+                return player.Name
+            end
+        end
+        return char.Name
+    end
+    return "?"
+end
+
+local function getTargetLookingAt()
+    local myChar = LocalPlayer.Character
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
+    local myPos = myChar.HumanoidRootPart.Position
+    local bestTarget = nil
+    local bestDot = -1
+    local camLook = Camera.CFrame.LookVector
+
+    local function checkTarget(char)
+        if char == myChar then return end
+        local hrp = getTargetHRP(char)
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not humanoid or humanoid.Health <= 0 then return end
+        local dist = (hrp.Position - myPos).Magnitude
+        if dist > maxDistance then return end
+        local dirToTarget = (hrp.Position - Camera.CFrame.Position).Unit
+        local dot = camLook:Dot(dirToTarget)
+        local minDot = isMobile and 0.3 or 0.5
+        if dot > minDot and dot > bestDot then
+            bestDot = dot
+            bestTarget = char
+        end
+    end
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            checkTarget(player.Character)
+        end
+    end
+
+    local function searchDummies(parent)
+        for _, obj in pairs(parent:GetChildren()) do
+            if obj:IsA("Model") and obj ~= myChar then
+                local hrp = getTargetHRP(obj)
+                local humanoid = obj:FindFirstChildOfClass("Humanoid")
+                if hrp and humanoid then
+                    local isPlayer = false
+                    for _, player in pairs(Players:GetPlayers()) do
+                        if player.Character == obj then
+                            isPlayer = true
+                            break
+                        end
+                    end
+                    if not isPlayer then
+                        checkTarget(obj)
+                    end
+                end
+            end
+            if obj:IsA("Folder") or obj:IsA("Model") then
+                searchDummies(obj)
+            end
+        end
+    end
+
+    searchDummies(workspace)
+    return bestTarget
+end
+
+local function showMira(char)
+    local hrp = getTargetHRP(char)
+    if hrp then
+        LockOnGui.Adornee = hrp
+        LockOnGui.Parent = game.CoreGui
+    end
+end
+
+local function hideMira()
+    LockOnGui.Adornee = nil
+    LockOnGui.Parent = nil
+end
+
+local function disableLock(msg)
+    lockOn = false
+    target = nil
+    LockButton.Text = "Lock: OFF"
+    LockButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    TargetLabel.Text = msg or ""
+    hideMira()
+
+    local myChar = LocalPlayer.Character
+    if myChar then
+        local hum = myChar:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.AutoRotate = true
+        end
+    end
+
+    Camera.CameraType = Enum.CameraType.Custom
+
+    if msg then
+        task.delay(1, function()
+            if not lockOn then TargetLabel.Text = "" end
+        end)
+    end
+end
+
+local function toggleLock()
+    lockOn = not lockOn
+    if lockOn then
+        target = getTargetLookingAt()
+        if target then
+            LockButton.Text = "Lock: ON"
+            LockButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+            TargetLabel.Text = "🎯 " .. getTargetName(target)
+            showMira(target)
+
+            local myChar = LocalPlayer.Character
+            if myChar then
+                local hum = myChar:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum.AutoRotate = false
+                end
+            end
+
+            Camera.CameraType = Enum.CameraType.Scriptable
+        else
+            disableLock("Sem alvo!")
+        end
+    else
+        disableLock()
+    end
+end
+
+LockButton.MouseButton1Click:Connect(function()
+    toggleLock()
+end)
+
+if not isMobile then
+    local waitingForKey = false
+
+    KeybindButton.MouseButton1Click:Connect(function()
+        waitingForKey = true
+        KeybindButton.Text = "..."
+    end)
+
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if waitingForKey then
+            if input.KeyCode ~= Enum.KeyCode.Unknown then
+                keybind = input.KeyCode
+                KeybindButton.Text = input.KeyCode.Name
+                waitingForKey = false
+            end
+            return
+        end
+        if input.KeyCode == keybind then
+            toggleLock()
+        end
+    end)
+end
+
+-- ========================
+-- INPUT - SÓ PC
+-- ========================
+
+local inputForward = 0
+local inputRight = 0
+
+if not isMobile then
+    local keysDown = {}
+
+    UserInputService.InputBegan:Connect(function(input, gpe)
+        if gpe then return end
+        keysDown[input.KeyCode] = true
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        keysDown[input.KeyCode] = nil
+    end)
+
+    RunService.Heartbeat:Connect(function()
+        if not lockOn then return end
+        inputForward = 0
+        inputRight = 0
+        if keysDown[Enum.KeyCode.W] then inputForward = inputForward + 1 end
+        if keysDown[Enum.KeyCode.S] then inputForward = inputForward - 1 end
+        if keysDown[Enum.KeyCode.A] then inputRight = inputRight + 1 end
+        if keysDown[Enum.KeyCode.D] then inputRight = inputRight - 1 end
+    end)
+end
+
+local cachedFlatDir = Vector3.new(0, 0, -1)
+local cachedRight = Vector3.new(1, 0, 0)
+
+-- ========================
+-- LOOP PRINCIPAL
+-- ========================
+
+RunService:BindToRenderStep("LockOnSystem", Enum.RenderPriority.Camera.Value + 20, function()
+    if not lockOn or not target then return end
+
+    local hrp = getTargetHRP(target)
+    if not hrp or not hrp.Parent then return end
+
+    local humanoid = target:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then
+        disableLock("Alvo eliminado!")
+        return
+    end
+
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    local myHRP = myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return end
+
+    local targetPos = hrp.Position
+    local myPos = myHRP.Position
+
+    local dist = (targetPos - myPos).Magnitude
+    if dist > maxDistance then
+        disableLock("Muito longe!")
+        return
+    end
+
+    local flatDir = Vector3.new(targetPos.X - myPos.X, 0, targetPos.Z - myPos.Z)
+    if flatDir.Magnitude > 0.1 then
+        flatDir = flatDir.Unit
+        cachedFlatDir = flatDir
+        cachedRight = Vector3.new(flatDir.Z, 0, -flatDir.X)
+
+        -- Virar personagem pro alvo
+        myHRP.CFrame = CFrame.new(myPos, myPos + flatDir)
+    end
+
+    -- Câmera
+    local camHeight = 3
+    local camBack = 8
+    local camSide = -2
+
+    local camPos = myPos
+        - cachedFlatDir * camBack
+        + Vector3.new(0, camHeight, 0)
+        + cachedRight * camSide
+
+    Camera.CFrame = CFrame.lookAt(camPos, targetPos + Vector3.new(0, 1, 0))
+
+    if Camera.CameraType ~= Enum.CameraType.Scriptable then
+        Camera.CameraType = Enum.CameraType.Scriptable
+    end
+
+    LockOnGui.Adornee = hrp
+end)
+
+-- ========================
+-- MOVIMENTO - SÓ PC
+-- ========================
+
+local currentHumanoid = nil
+
+local function setupHumanoid()
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    currentHumanoid = myChar:FindFirstChildOfClass("Humanoid")
+end
+
+if LocalPlayer.Character then
+    setupHumanoid()
+end
+
+if not isMobile then
+    RunService:BindToRenderStep("LockOnMovement", Enum.RenderPriority.Input.Value, function()
+        if not lockOn or not target or not currentHumanoid then return end
+
+        if math.abs(inputForward) < 0.1 and math.abs(inputRight) < 0.1 then return end
+
+        local moveDir = (cachedFlatDir * inputForward) + (cachedRight * inputRight)
+
+        if moveDir.Magnitude > 0.1 then
+            currentHumanoid:Move(moveDir.Unit, false)
+        end
+    end)
+end
+
+-- ========================
+-- PROTEÇÃO
+-- ========================
+
+RunService:BindToRenderStep("LockOnProtect", Enum.RenderPriority.Last.Value, function()
+    if not lockOn then return end
+
+    if Camera.CameraType ~= Enum.CameraType.Scriptable then
+        Camera.CameraType = Enum.CameraType.Scriptable
+    end
+
+    local myChar = LocalPlayer.Character
+    if myChar then
+        local hum = myChar:FindFirstChildOfClass("Humanoid")
+        if hum and hum.AutoRotate then
+            hum.AutoRotate = false
+        end
+    end
+end)
+
+Camera:GetPropertyChangedSignal("CameraType"):Connect(function()
+    if lockOn then
+        task.defer(function()
+            Camera.CameraType = Enum.CameraType.Scriptable
+        end)
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if not lockOn or not target then return end
+    local hrp = getTargetHRP(target)
+    if not hrp or not hrp.Parent then
+        local targetName = getTargetName(target)
+        for _, player in pairs(Players:GetPlayers()) do
+            if player.Name == targetName and player.Character then
+                local newHRP = getTargetHRP(player.Character)
+                local newHum = player.Character:FindFirstChildOfClass("Humanoid")
+                if newHRP and newHum and newHum.Health > 0 then
+                    target = player.Character
+                    showMira(target)
+                    return
+                end
+            end
+        end
+    end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    if lockOn then
+        disableLock()
+    end
+    char:WaitForChild("HumanoidRootPart")
+    char:WaitForChild("Humanoid")
+    setupHumanoid()
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum:GetPropertyChangedSignal("AutoRotate"):Connect(function()
+            if lockOn and hum.AutoRotate then
+                hum.AutoRotate = false
+            end
+        end)
+    end
+end)
+
+if LocalPlayer.Character then
+    local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum:GetPropertyChangedSignal("AutoRotate"):Connect(function()
+            if lockOn and hum.AutoRotate then
+                hum.AutoRotate = false
+            end
+        end)
+    end
+end
+
+print("✅ Lock On V15 - Mobile Fix!")
+print(isMobile and "📱 Mobile - Movimento natural!" or "💻 PC")
+print("🎮 Controles corretos!")
+print("⚡ Zero delay!")
